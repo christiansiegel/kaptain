@@ -6,22 +6,6 @@ info:
 servers:
 - url: /v1/
 paths:
-  /hello:
-    get:
-      summary: Get hello world
-      operationId: app.get_hello
-      responses:
-        200:
-          description: Return hello world
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  pets:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/HelloWorld'
   /{repo}/{chart}:
     get:
       summary: Get chart values
@@ -48,15 +32,6 @@ paths:
                 $ref: '#/components/schemas/ChartValues'
 components:
   schemas:
-    HelloWorld:
-      required:
-      - message
-      type: object
-      properties:
-        message:
-          type: string
-          readOnly: true
-          example: "Hello World"
     ChartValues:
       required:
       - values

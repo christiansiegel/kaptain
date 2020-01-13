@@ -61,10 +61,6 @@ def _get_value_by_path(obj, path):
     return obj[keys[-1]]
 
 
-def get_hello():
-    return {"message": "Kaptain says 'hello'!"}
-
-
 @create_tmp_dir
 def get_repo_chart(repo, chart, tmp_dir):
     repo_url = urllib.parse.urljoin(GIT_ORGA, repo)
