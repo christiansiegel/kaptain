@@ -40,6 +40,27 @@ def _clone(repo_url, dest_dir):
     return Repo.clone_from(repo_url, dest_dir)
 
 
+def _read_config(repo):
+    file_path = Path(os.path.join(repo.working_tree_dir, "kaptain.yaml"))
+    if not os.path.exists(file_path):
+        return dict()
+    yaml = YAML()
+    return yaml.load(file_path)
+
+
+def _read_values_yaml(repo, chart):
+    file_path = Path(os.path.join(repo.working_tree_dir, chart, "values.yaml"))
+    yaml = YAML()
+    return yaml.load(file_path)
+
+
+def _get_value_by_path(obj, path):
+    keys = path.split(".")
+    for k in keys[:-1]:
+        obj = obj[k]
+    return obj[keys[-1]]
+
+
 def get_hello():
     return {"message": "Kaptain says 'hello'!"}
 
@@ -48,7 +69,12 @@ def get_hello():
 def get_repo_chart(repo, chart, tmp_dir):
     repo_url = urllib.parse.urljoin(GIT_ORGA, repo)
     r = _clone(repo_url, tmp_dir)
-    return {"values": [{"path": "test", "value": "xx"}]}
+    config = _read_config(r)
+    values_yaml = _read_values_yaml(r, chart)
+    values = []
+    for path in config["values"]:
+        values.append({"path": path, "value": _get_value_by_path(values_yaml, path)})
+    return {"values": values}
 
 
 logging.basicConfig(level=logging.INFO)
