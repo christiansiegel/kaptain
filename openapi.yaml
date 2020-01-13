@@ -1,0 +1,35 @@
+openapi: 3.0.1
+info:
+  title: kaptain
+  description: The kaptain API
+  version: "0.0.1"
+servers:
+- url: /v1/
+paths:
+  /hello:
+    get:
+      summary: Get hello world
+      operationId: app.get_hello
+      responses:
+        200:
+          description: Return hello world
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pets:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/HelloWorld'
+components:
+  schemas:
+    HelloWorld:
+      required:
+      - message
+      type: object
+      properties:
+        message:
+          type: string
+          readOnly: true
+          example: "Hello World"
