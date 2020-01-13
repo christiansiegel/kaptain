@@ -5,13 +5,18 @@ RUN python3 -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends gcc build-essential
+ && apt-get install -y --no-install-recommends gcc build-essential \
+ && rm -rf /var/lib/apt/lists/*
 
 COPY ./requirements.txt .
 RUN pip install --upgrade pip \
  && pip install -r requirements.txt
 
 FROM python:3.7-slim-buster as runtime
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends git \
+ && rm -rf /var/lib/apt/lists/*
 
 COPY --from=deps /opt/venv /opt/venv
 
@@ -28,4 +33,4 @@ COPY app.py \
      openapi.yaml \
      ./
 
-CMD ["uwsgi", "--http", ":8080", "-w", "app"]
+CMD ["uwsgi", "--http", ":8080", "--threads", "10", "-w", "app"]

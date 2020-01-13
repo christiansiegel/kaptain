@@ -22,6 +22,30 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/HelloWorld'
+  /{repo}/{chart}:
+    get:
+      summary: Get chart values
+      operationId: app.get_repo_chart
+      parameters:
+        - in: path
+          name: repo
+          schema:
+            type: string
+          required: true
+          description: Repo name
+        - in: path
+          name: chart
+          schema:
+            type: string
+          required: true
+          description: Chart name
+      responses:
+        200:
+          description: Return chart values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChartValues'
 components:
   schemas:
     HelloWorld:
@@ -33,3 +57,26 @@ components:
           type: string
           readOnly: true
           example: "Hello World"
+    ChartValues:
+      required:
+      - values
+      type: object
+      properties:
+        values:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChartValue'
+    ChartValue:
+      required:
+      - path
+      - value
+      properties:
+        path:
+          type: string
+          example: "server.image.tag"
+        value:
+          oneOf:
+          - type: string
+          - type: number
+          - type: integer
+          example: "latest"
