@@ -20,6 +20,8 @@ SSH_PRIVATE_KEY_PATH = os.getenv(
     "SSH_PRIVATE_KEY_PATH", os.path.expanduser("~/.ssh/id_rsa")
 )
 
+GIT_SSH_COMMAND = f"ssh -i {SSH_PRIVATE_KEY_PATH} -o StrictHostKeyChecking=no"
+
 
 def create_tmp_dir(func):
     """
@@ -45,7 +47,7 @@ def _clone(repo_url, dest_dir):
     Clones a git repository into the destination dir.
     """
     return Repo.clone_from(
-        repo_url, dest_dir, env={"GIT_SSH_COMMAND": f"ssh -i {SSH_PRIVATE_KEY_PATH}"}
+        repo_url, dest_dir, env={"GIT_SSH_COMMAND": GIT_SSH_COMMAND},
     )
 
 

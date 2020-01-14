@@ -12,25 +12,25 @@ COPY ./requirements.txt .
 RUN pip install --upgrade pip \
  && pip install -r requirements.txt
 
+
 FROM python:3.7-slim-buster as runtime
 
-RUN apt-get update \
- && apt-get install -y --no-install-recommends git \
- && rm -rf /var/lib/apt/lists/*
+WORKDIR /opt/app
 
-COPY --from=deps /opt/venv /opt/venv
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends git ssh \
+ && rm -rf /var/lib/apt/lists/* \
+ && chmod g=u /etc/passwd
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH"
 
-WORKDIR /usr/src/app
-
-RUN addgroup --system user && adduser --system --no-create-home --group user \
- && chown -R user:user /usr/src/app && chmod -R 755 /usr/src/app
-USER user
+COPY --from=deps /opt/venv /opt/venv
 
 COPY app.py \
      openapi.yaml \
+     entrypoint.sh \
      ./
 
-CMD ["uwsgi", "--http", ":8080", "--threads", "10", "-w", "app"]
+USER 1001
+ENTRYPOINT [ "/opt/app/entrypoint.sh" ]
