@@ -13,7 +13,12 @@ from pathlib import Path
 from werkzeug.exceptions import Forbidden, NotFound, UnprocessableEntity
 from connexion import NoContent
 
-GIT_ORGA = "https://github.com/christiansiegel" + "/"
+GIT_URL_TEMPLATE = os.getenv(
+    "GIT_URL_TEMPLATE", "git@github.com:christiansiegel/<repo>.git"
+)
+SSH_PRIVATE_KEY_PATH = os.getenv(
+    "SSH_PRIVATE_KEY_PATH", os.path.expanduser("~/.ssh/id_rsa")
+)
 
 
 def create_tmp_dir(func):
@@ -39,7 +44,9 @@ def _clone(repo_url, dest_dir):
     """
     Clones a git repository into the destination dir.
     """
-    return Repo.clone_from(repo_url, dest_dir)
+    return Repo.clone_from(
+        repo_url, dest_dir, env={"GIT_SSH_COMMAND": f"ssh -i {SSH_PRIVATE_KEY_PATH}"}
+    )
 
 
 def _read_config(repo):
@@ -71,18 +78,15 @@ def _read_values_yaml(repo, chart):
         raise UnprocessableEntity(f"`{chart}/values.yaml` could not be loaded") from ex
 
 
-def _commit_values_yaml(repo, chart, values_yaml):
+def _write_values_yaml(repo, chart, values_yaml):
     """
-    Commit `values.yaml` in chart directory.
+    Write `values.yaml` in chart directory and add to staging.
     """
     file_path = Path(os.path.join(repo.working_tree_dir, chart, "values.yaml"))
     yaml = YAML()
     with open(file_path, "w+") as f:
         yaml.dump(values_yaml, f)
     repo.git.add(file_path)
-    repo.config_writer().set_value("user", "name", "kaptain").release()
-    repo.config_writer().set_value("user", "email", "kaptain@kaptain.com").release()
-    repo.git.commit("-m", "test commit")
 
 
 def _get_value_by_path(obj, path):
@@ -113,7 +117,7 @@ def _set_value_by_path(obj, path, value):
 
 @create_tmp_dir
 def get_repo_chart(repo, chart, tmp_dir):
-    repo_url = urllib.parse.urljoin(GIT_ORGA, repo)
+    repo_url = GIT_URL_TEMPLATE.replace("<repo>", repo)
     r = _clone(repo_url, tmp_dir)
     config = _read_config(r)
     values_yaml = _read_values_yaml(r, chart)
