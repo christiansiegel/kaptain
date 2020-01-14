@@ -10,6 +10,7 @@ from flask import g
 from ruamel.yaml import YAML
 from git import Repo
 from pathlib import Path
+from werkzeug.exceptions import NotFound, UnprocessableEntity
 
 GIT_ORGA = "https://github.com/christiansiegel" + "/"
 
@@ -41,24 +42,46 @@ def _clone(repo_url, dest_dir):
 
 
 def _read_config(repo):
+    """
+    Read `kaptain.yaml` config file.
+    If it doesn't exist, return an empty object.
+    """
     file_path = Path(os.path.join(repo.working_tree_dir, "kaptain.yaml"))
     if not os.path.exists(file_path):
-        return dict()
+        return {}
     yaml = YAML()
-    return yaml.load(file_path)
+    try:
+        return yaml.load(file_path)
+    except Exception as ex:
+        raise UnprocessableEntity(f"`kaptain.yaml` could not be loaded") from ex
 
 
 def _read_values_yaml(repo, chart):
+    """
+    Read `values.yaml` in chart directory.
+    """
     file_path = Path(os.path.join(repo.working_tree_dir, chart, "values.yaml"))
     yaml = YAML()
-    return yaml.load(file_path)
+    try:
+        return yaml.load(file_path)
+    except FileNotFoundError as ex:
+        raise NotFound(f"`{chart}/values.yaml` not found in repo") from ex
+    except Exception as ex:
+        raise UnprocessableEntity(f"`{chart}/values.yaml` could not be loaded") from ex
 
 
 def _get_value_by_path(obj, path):
+    """
+    Get object value by path.
+    (e.g. `"a.b"` for object `{a: {b: 2}}` returns `2`)
+    """
     keys = path.split(".")
-    for k in keys[:-1]:
-        obj = obj[k]
-    return obj[keys[-1]]
+    try:
+        for k in keys[:-1]:
+            obj = obj[k]
+        return obj[keys[-1]]
+    except Exception as ex:
+        raise UnprocessableEntity(f"`{path}` could not be found in values.yaml") from ex
 
 
 @create_tmp_dir
@@ -69,7 +92,8 @@ def get_repo_chart(repo, chart, tmp_dir):
     values_yaml = _read_values_yaml(r, chart)
     values = []
     for path in config["values"]:
-        values.append({"path": path, "value": _get_value_by_path(values_yaml, path)})
+        value = _get_value_by_path(values_yaml, path)
+        values.append({"path": path, "value": value})
     return {"values": values}
 
 

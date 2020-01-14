@@ -48,6 +48,7 @@ components:
       properties:
         path:
           type: string
+          minLength: 1
           example: "server.image.tag"
         value:
           oneOf:
