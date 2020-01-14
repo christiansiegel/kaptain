@@ -10,7 +10,8 @@ from flask import g
 from ruamel.yaml import YAML
 from git import Repo
 from pathlib import Path
-from werkzeug.exceptions import NotFound, UnprocessableEntity
+from werkzeug.exceptions import Forbidden, NotFound, UnprocessableEntity
+from connexion import NoContent
 
 GIT_ORGA = "https://github.com/christiansiegel" + "/"
 
@@ -70,16 +71,42 @@ def _read_values_yaml(repo, chart):
         raise UnprocessableEntity(f"`{chart}/values.yaml` could not be loaded") from ex
 
 
+def _commit_values_yaml(repo, chart, values_yaml):
+    """
+    Commit `values.yaml` in chart directory.
+    """
+    file_path = Path(os.path.join(repo.working_tree_dir, chart, "values.yaml"))
+    yaml = YAML()
+    with open(file_path, "w+") as f:
+        yaml.dump(values_yaml, f)
+    repo.git.add(file_path)
+    repo.config_writer().set_value("user", "name", "kaptain").release()
+    repo.config_writer().set_value("user", "email", "kaptain@kaptain.com").release()
+    repo.git.commit("-m", "test commit")
+
+
 def _get_value_by_path(obj, path):
     """
-    Get object value by path.
-    (e.g. `"a.b"` for object `{a: {b: 2}}` returns `2`)
+    Get object value by path (e.g. `"a.b"` for object `{a: {b: 2}}`)
     """
     keys = path.split(".")
     try:
         for k in keys[:-1]:
             obj = obj[k]
         return obj[keys[-1]]
+    except Exception as ex:
+        raise UnprocessableEntity(f"`{path}` could not be found in values.yaml") from ex
+
+
+def _set_value_by_path(obj, path, value):
+    """
+    Set object value by path (e.g. `"a.b"` for object `{a: {b: 2}}`)
+    """
+    keys = path.split(".")
+    try:
+        for k in keys[:-1]:
+            obj = obj[k]
+        obj[keys[-1]] = value
     except Exception as ex:
         raise UnprocessableEntity(f"`{path}` could not be found in values.yaml") from ex
 
@@ -97,16 +124,37 @@ def get_repo_chart(repo, chart, tmp_dir):
     return {"values": values}
 
 
+@create_tmp_dir
+def put_repo_chart(repo, chart, body, tmp_dir):
+    repo_url = GIT_URL_TEMPLATE.replace("<repo>", repo)
+    r = _clone(repo_url, tmp_dir)
+    config = _read_config(r)
+    values_yaml = _read_values_yaml(r, chart)
+    for value in body["values"]:
+        path = value["path"]
+        if path not in config["values"]:
+            raise Forbidden(f"Updating `{path}` is not allowed")
+        _set_value_by_path(values_yaml, path, value["value"])
+    _write_values_yaml(r, chart, values_yaml)
+    if r.index.diff("HEAD"):
+        r.config_writer().set_value("user", "name", "kaptain").release()
+        r.config_writer().set_value("user", "email", "kaptain@kaptain.com").release()
+        r.git.commit("-m", "test commit")
+        with r.git.custom_environment(GIT_SSH_COMMAND=GIT_SSH_COMMAND):
+            r.remotes.origin.push()
+    return NoContent, 200
+
+
 logging.basicConfig(level=logging.INFO)
 app = connexion.App(__name__)
 app.add_api("openapi.yaml")
 
 
-@app.app.errorhandler(Exception)
+"""@app.app.errorhandler(Exception)
 def handle_exception(e):
     logging.error("server error: %s", repr(e))
     return "server error", 500
-
+"""
 
 # uwsgi --http :8080 -w app
 application = app.app

@@ -30,6 +30,39 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ChartValues'
+        404:
+          description: Repo or chart doesn't exist
+        422:
+          description: Repo files couldn't be processed
+    put:
+      summary: Put chart values
+      operationId: app.put_repo_chart
+      parameters:
+        - in: path
+          name: repo
+          schema:
+            type: string
+          required: true
+          description: Repo name
+        - in: path
+          name: chart
+          schema:
+            type: string
+          required: true
+          description: Chart name
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChartValues'
+      responses:
+        200:
+          description: Values updated
+        404:
+          description: Repo or chart doesn't exist
+        422:
+          description: Repo files couldn't be processed
 components:
   schemas:
     ChartValues:
